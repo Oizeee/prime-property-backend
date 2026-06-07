@@ -1,15 +1,11 @@
 {
   "version": 2,
-  "functions": {
-    "api/index.php": {
-      "runtime": "vercel-php@0.7.2",
-      "memory": 1024,
-      "maxDuration": 15,
-      "configuration": {
-        "helpers": ["pgsql", "pdo_pgsql"]
-      }
+  "builds": [
+    {
+      "src": "api/index.php",
+      "use": "vercel-php@0.7.2"
     }
-  },
+  ],
   "routes": [
     {
       "src": "/(.*)",
