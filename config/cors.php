@@ -9,13 +9,18 @@ return [
     |
     | Required for Sanctum stateful (cookie-based) SPA authentication.
     |
+    |  SAMPURNA PAKE REKS: Mengizinkan localhost dan domain Vercel frontend lu
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    'paths' => ['api/*', 'sanctum/csrf-cookie', '*'],
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => array_filter(explode(',', env('CORS_ALLOWED_ORIGINS', 'http://localhost:3000'))),
+    // Daftarkan localhost dan domain vercel frontend lu secara eksplisit di sini blay
+    'allowed_origins' => [
+        'http://localhost:3000',
+        'https://prime-property-frontend-three.vercel.app'
+    ],
 
     'allowed_origins_patterns' => [],
 
@@ -25,6 +30,7 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => true,
+    // Set false karena di apiClient frontend lu tadi: withCredentials: false
+    'supports_credentials' => false,
 
 ];
