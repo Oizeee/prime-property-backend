@@ -12,7 +12,7 @@ class AgentLoginTest extends TestCase
     use InteractsWithPrimeProperty;
     use RefreshDatabase;
 
-    public function test_agent_can_login_with_valid_credentials_and_receive_session_cookie(): void
+    public function test_agent_can_login_with_valid_credentials_and_receive_token(): void
     {
         $user = User::factory()->superadmin()->create([
             'email' => 'agent@primeproperty.test',
@@ -21,25 +21,38 @@ class AgentLoginTest extends TestCase
 
         $this->clearLoginRateLimiter($user->email);
 
-        $response = $this->withStatefulApi()
-            ->obtainCsrfCookie()
-            ->postJson('/api/agent/login', [
-                'email' => $user->email,
-                'password' => 'SecretPass123',
-            ]);
+        $response = $this->postJson('/api/agent/login', [
+            'email' => $user->email,
+            'password' => 'SecretPass123',
+        ]);
 
         $response->assertOk()
             ->assertJsonPath('message', 'Login berhasil.')
             ->assertJsonPath('user.email', $user->email)
-            ->assertJsonPath('user.role', User::ROLE_SUPERADMIN);
+            ->assertJsonPath('user.role', User::ROLE_SUPERADMIN)
+            ->assertJsonStructure(['token', 'token_type']);
 
-        $response->assertCookie(config('session.cookie'));
-        $this->assertAuthenticatedAs($user);
+        $token = $response->json('token');
 
-        $this->withStatefulApi()
-            ->postJson('/api/agent/logout')
-            ->assertOk()
+        // Test fetching active user via /api/me using the token.
+        $this->getJson('/api/me', [
+            'Authorization' => 'Bearer ' . $token,
+        ])->assertOk()
+            ->assertJsonPath('user.email', $user->email);
+
+        // Test logout invalidates the token.
+        $this->postJson('/api/agent/logout', [], [
+            'Authorization' => 'Bearer ' . $token,
+        ])->assertOk()
             ->assertJsonPath('message', 'Logout berhasil.');
+
+        // Forget guards in the test container to force re-authentication for the next request.
+        \Illuminate\Support\Facades\Auth::forgetGuards();
+
+        // Test the token is now invalid.
+        $this->getJson('/api/me', [
+            'Authorization' => 'Bearer ' . $token,
+        ])->assertUnauthorized();
     }
 
     public function test_login_locks_account_after_five_failed_attempts(): void

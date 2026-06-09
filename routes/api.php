@@ -21,6 +21,16 @@ Route::middleware('throttle:auth')->group(function () {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
+  Route::get('/me', function (\Illuminate\Http\Request $request) {
+    return response()->json([
+      'user' => [
+        'id' => $request->user()->id,
+        'name' => $request->user()->name,
+        'email' => $request->user()->email,
+        'role' => $request->user()->role,
+      ],
+    ]);
+  });
   Route::post('/agent/logout', [AgentAuthController::class, 'logout']);
 });
 

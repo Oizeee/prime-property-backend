@@ -39,10 +39,10 @@ class AgentAuthController extends Controller
       ], Response::HTTP_TOO_MANY_REQUESTS);
     }
 
-    if (! Auth::attempt(
-      ['email' => $email, 'password' => $request->validated('password')],
-      remember: true,
-    )) {
+    if (! Auth::once([
+      'email' => $email,
+      'password' => $request->validated('password')
+    ])) {
       RateLimiter::hit($attemptKey, self::ATTEMPT_WINDOW_SECONDS);
 
       if (RateLimiter::tooManyAttempts($attemptKey, self::MAX_ATTEMPTS)) {
@@ -63,14 +63,13 @@ class AgentAuthController extends Controller
     RateLimiter::clear($attemptKey);
     RateLimiter::clear($lockoutKey);
 
-    if ($request->hasSession()) {
-      $request->session()->regenerate();
-    }
-
     $user = Auth::user();
+    $token = $user->createToken('prime-property-web')->plainTextToken;
 
     return response()->json([
       'message' => 'Login berhasil.',
+      'token' => $token,
+      'token_type' => 'Bearer',
       'user' => [
         'id' => $user->id,
         'name' => $user->name,
@@ -85,10 +84,18 @@ class AgentAuthController extends Controller
    */
   public function logout(): JsonResponse
   {
-    Auth::guard('web')->logout();
+    $user = request()->user();
 
-    request()->session()->invalidate();
-    request()->session()->regenerateToken();
+    if ($user) {
+      $token = $user->currentAccessToken();
+      if ($token && method_exists($token, 'delete')) {
+        $token->delete();
+      } else {
+        $user->tokens()->delete();
+      }
+    }
+
+    Auth::guard('web')->logout();
 
     return response()->json(['message' => 'Logout berhasil.']);
   }
